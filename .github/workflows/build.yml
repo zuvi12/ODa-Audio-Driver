@@ -1,0 +1,60 @@
+name: Build (CI)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build x64 Release
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install WDK 11
+        shell: pwsh
+        run: |
+          choco install windowsdriverkit11 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Workaround infverif path layout
+        shell: pwsh
+        run: |
+          $bases = @(
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0",
+            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0"
+          )
+          foreach ($b in $bases) {
+            if (Test-Path "$b\x86" -and -not (Test-Path "$b\x86\x86")) {
+              New-Item -ItemType Directory -Path "$b\x86\x86" -Force | Out-Null
+              if (Test-Path "$b\x86\infverif.dll") {
+                Copy-Item "$b\x86\infverif.dll" "$b\x86\x86\" -Force
+              }
+            }
+          }
+
+      - name: Build solution
+        shell: cmd
+        run: msbuild ODaAudioDriver.sln /p:Configuration=Release /p:Platform=x64 /m /v:minimal
+
+      - name: Upload unsigned package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ODaAudioDriver-unsigned-x64
+          path: |
+            x64/Release/package/ODaAudioDriver.sys
+            x64/Release/package/ODaAudioDriver.inf
+            x64/Release/package/odaaudiodriver.cat
+          if-no-files-found: error
+          retention-days: 14
