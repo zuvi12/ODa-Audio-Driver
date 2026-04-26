@@ -13,8 +13,8 @@ permissions:
 jobs:
   build-and-sign:
     name: Build, sign with SignPath, publish
-    runs-on: windows-latest
-    timeout-minutes: 60
+    runs-on: windows-2022   # has WDK 22H2 + VS 2022 pre-installed; windows-latest moved to 2025 which removed WDK
+    timeout-minutes: 45
     env:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     steps:
@@ -23,32 +23,6 @@ jobs:
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
-
-      - name: Install Visual Studio 2022 workloads + WDK 11
-        shell: pwsh
-        run: |
-          choco install visualstudio2022-workload-nativedesktop -y --no-progress
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-          choco install visualstudio2022-workload-vctools -y --no-progress
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-          choco install windowsdriverkit11 -y --no-progress
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-      - name: Workaround infverif path layout
-        shell: pwsh
-        run: |
-          $bases = @(
-            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0",
-            "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0"
-          )
-          foreach ($b in $bases) {
-            if ((Test-Path "$b\x86") -and -not (Test-Path "$b\x86\x86")) {
-              New-Item -ItemType Directory -Path "$b\x86\x86" -Force | Out-Null
-              if (Test-Path "$b\x86\infverif.dll") {
-                Copy-Item "$b\x86\infverif.dll" "$b\x86\x86\" -Force
-              }
-            }
-          }
 
       - name: Build solution
         shell: cmd
