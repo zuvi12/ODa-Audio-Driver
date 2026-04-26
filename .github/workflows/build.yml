@@ -22,9 +22,13 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install WDK 11
+      - name: Install Visual Studio 2022 workloads + WDK 11
         shell: pwsh
         run: |
+          choco install visualstudio2022-workload-nativedesktop -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          choco install visualstudio2022-workload-vctools -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           choco install windowsdriverkit11 -y --no-progress
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
